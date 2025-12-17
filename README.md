@@ -234,15 +234,52 @@ Any valid card format works in sandbox:
 - `4111 1111 1111 1111` (Visa)
 - `5500 0000 0000 0004` (Mastercard)
 
-## Production Checklist
+## Going to Production
 
-- [ ] Get production credentials from Tatra banka
-- [ ] Set `TATRAPAY_SANDBOX=false`
+### Step 1: Test in Sandbox First (Required)
+
+Before requesting production access, ensure your integration works:
+
+- [ ] Test complete payment flow locally with `TATRAPAY_SANDBOX=true`
+- [ ] Verify CARD_PAY works (includes `cardDetail`)
+- [ ] Verify BANK_TRANSFER works
+- [ ] Verify callback updates your database correctly
+- [ ] Test both success and failure scenarios
+
+### Step 2: Request Production Access
+
+1. **Submit online form:** https://api.tatrabanka.sk/onlineForm
+   - Organization name
+   - API interface: **TatraPayPlus**
+   - Brief description of your use case
+
+2. **Tatra banka will contact you** for contract signing
+
+3. **After contract approval:**
+   - Log in to [Tatra banka Developer Portal](https://developer.tatrabanka.sk)
+   - Go to **Aplikácie** → Your application → **Editovať**
+   - Click on **TatraPayPlus API v1.5.1**
+   - Click edit icon next to plans
+   - Select **"TatraPayPlus Production Plan"**
+   - Accept terms ("PRIJÍMAM PODMIENKY POUŽÍVANIA")
+
+### Step 3: Production Deployment
+
+- [ ] Set `TATRAPAY_SANDBOX=false` in production environment
 - [ ] Update `NEXT_PUBLIC_BASE_URL` to production domain
+- [ ] Verify callback URLs are accessible from internet
 - [ ] Test with small real payment (e.g., 1€)
-- [ ] Verify callback updates database correctly
 - [ ] Verify confirmation emails are sent
-- [ ] Set up error monitoring
+- [ ] Set up error monitoring (Sentry, etc.)
+
+### Plan Comparison
+
+| Plan | Rate Limit | Daily Quota | Use Case |
+|------|------------|-------------|----------|
+| **Sandbox** | 5 req/sec | 5000/day | Testing only |
+| **Production** | Higher | Higher | Real payments |
+
+**Important:** The Client ID and Secret remain the same for both plans - only the API endpoint changes based on `TATRAPAY_SANDBOX` flag.
 
 ## Related Resources
 
