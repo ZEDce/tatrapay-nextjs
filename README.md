@@ -216,6 +216,60 @@ if (isPaymentSuccessful(status)) { ... }
 2. Check `Redirect-URI` header is set
 3. Verify `Preferred-Method` header matches request
 
+### Redirect-URI Cannot Have Query Parameters
+
+**Problem:** TatraPay doesn't receive your custom params (voucherId, orderId)
+
+**Root Cause:** `Redirect-URI` header must exactly match registered URL - no query params allowed.
+
+**Solution:** Store paymentId in DB, look up by TatraPay's `paymentId` param in callback:
+```typescript
+// Store when creating payment
+await db.vouchers.update({ tatrapay_payment_id: payment.paymentId })
+
+// In callback - TatraPay adds paymentId param
+const paymentId = searchParams.get('paymentId')
+const voucher = await db.vouchers.findBy({ tatrapay_payment_id: paymentId })
+```
+
+### Amount Field Name Varies
+
+**Problem:** `Cannot read properties of undefined (reading 'amount')`
+
+**Root Cause:** TatraPay uses `amountValue` in some responses, `amount` in others.
+
+**Solution:**
+```typescript
+const value = response.amountValue ?? response.amount ?? 0
+```
+
+### Sandbox Status is `INIT` After Successful Payment
+
+**Problem:** Callback shows `INIT` status instead of `ACSC` after simulating success.
+
+**Root Cause:** Sandbox timing - status API doesn't update instantly.
+
+**Solution:** This is normal for sandbox. Production payments return proper status immediately.
+
+### Invalid Phone Format
+
+**Problem:** TatraPay rejects phone numbers
+
+**Solution:** Sanitize to E.164 format:
+```typescript
+phone = phone.replace(/[^\d+]/g, '')
+if (!phone.startsWith('+')) phone = '+421' + phone.replace(/^0/, '')
+```
+
+### Localhost IP Rejected
+
+**Problem:** Sandbox rejects 127.0.0.1 or ::1
+
+**Solution:** Use fake public IP for sandbox:
+```typescript
+headers['IP-Address'] = isSandbox ? '85.216.67.1' : realIp
+```
+
 ## Testing
 
 ### Sandbox Mode
