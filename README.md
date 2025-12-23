@@ -125,16 +125,23 @@ Gets current payment status.
 {
   paymentId: string,
   status: TatraPayStatus,
+  authorizationStatus?: string,  // 'AUTH_DONE' for successful card payments
   merchantReference: string,
   amount: { amount: number, currency: string },
   transactionId?: string
 }
 ```
 
+**Important:** For card payments, check BOTH `status` and `authorizationStatus`:
+```typescript
+const isSuccessful = isPaymentSuccessful(status.status) ||
+                     status.authorizationStatus === 'AUTH_DONE'
+```
+
 ### Status Helpers
 
 ```typescript
-isPaymentSuccessful(status)  // true for ACCC, ACSC, ACSP, etc.
+isPaymentSuccessful(status)  // true for ACCC, ACSC, ACSP, OK, AUTH_DONE, etc.
 isPaymentFailed(status)      // true for RJCT, CANC
 isPaymentPending(status)     // true for RCVD, PDNG, etc.
 mapToInternalStatus(status)  // 'completed' | 'failed' | 'pending'
@@ -150,6 +157,8 @@ mapToInternalStatus(status)  // 'completed' | 'failed' | 'pending'
 | `ACSC` | Settlement Completed | ✅ Most common for card payments |
 | `ACCC` | Credit Completed | ✅ Payment fully completed |
 | `ACSP` | Settlement In Progress | ✅ Being processed |
+| `OK` | TatraPay Success | ✅ Card payment authorized |
+| `AUTH_DONE` | Authorization Done | ✅ Card authorization completed (check `authorizationStatus` field) |
 
 ### Failed Codes
 | Code | Meaning | Description |
@@ -206,6 +215,27 @@ if (status === 'SETTLED') { ... }
 if (isPaymentSuccessful(status)) { ... }
 // Or directly: if (status === 'ACSC') { ... }
 ```
+
+### Card Payment Returns "OK" but Shows as Pending
+
+**Problem:** Card payment succeeds (money charged) but your app shows "pending"
+
+**Root Cause:** TatraPay returns `status: "OK"` and `authorizationStatus: "AUTH_DONE"` for successful card payments, but some code only checks for ISO 20022 codes (ACSC, ACCC).
+
+**Solution:** Check BOTH fields:
+```typescript
+const paymentStatus = await getPaymentStatus(paymentId)
+
+// Check both status and authorizationStatus
+const isSuccessful = isPaymentSuccessful(paymentStatus.status) ||
+                     paymentStatus.authorizationStatus === 'AUTH_DONE'
+
+if (isSuccessful) {
+  // Payment successful - update DB and send confirmation
+}
+```
+
+**Note:** `isPaymentSuccessful()` now includes `OK` and `AUTH_DONE` in success list.
 
 ### No Redirect URL Returned
 
